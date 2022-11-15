@@ -2049,7 +2049,7 @@ class AppapiController extends Controller
         }
     }
     public function store_question_ans(Request $request){
-
+       
         $questionnum = count($request->answer);
         for($i=0;$i<$questionnum;$i++){
             $ans = new Admin_Question_Ans;
@@ -2142,6 +2142,7 @@ class AppapiController extends Controller
                 }
                 
                 $arrayval = array_diff($panding_ans, $done_ans);
+                
                
                 $check_ans1 = Admin_Question_Ans::where('user_id',$user_id)->where('type',$type)->where('category_id',$month)->orderBy('id','DESC')->get('created_at');
             
