@@ -43,7 +43,7 @@ class EverydayCron extends Command
      */
     public function handle()
     {   
-        // For manage nearest milestone date 
+        // For manage nearest milestone date
         $current_date = now()->format('Y/m/d');
         MilestoneUser::where('date', '>=', $current_date)->update(['date_status'=>1]);
         MilestoneUser::where('date', '<', $current_date)->update(['date_status'=>0]);
@@ -74,16 +74,19 @@ class EverydayCron extends Command
             $data['message'] = $all_question[0]['question'];
             $data['title'] = $mile->title;
             $data['milestone_id'] = $mile->id;
+            $data['milestone_id_original'] = $mile->milestone->id;
     
             $tokens = [];
-            $tokens[] = App_User_surrogate::where('id',$mile->surrogate_id)->pluck('fcm_token')->all();
+            $tokens[] = App_User_surrogate::where('id',$mile->surrogate_id)->where('status','active')->pluck('fcm_token')->all();
             $tok = json_encode($tokens);
             $serverKey = 'AAAA55UTwmU:APA91bH8-HB3mx-PfAZdAtC3BXP_vp1j9HzQYmhmi58Xn3-8IAqU6GcxYaLAcZ2339M3EYwSI9wsmEXI_9iL4rb60tDhiR3JNEdqlaBDYBTtuV7lkItIQH2rpF_fL3QVH3eJlTyqu2Ma';
     
             // store data in notification table
             $notification = new Notification;
-            $notification->type = $mile->type;
+            // $notification->type = $mile->type;
+            $notification->type = 'surrogate';
             $notification->user_id = $mile->surrogate_id;
+            $notification->milestone_id = $data['milestone_id_original'];
             $notification->fcm_token = $tok;
             $notification->date = Carbon::parse(now())->format('Y-m-d');
             $notification->title = $mile->title;

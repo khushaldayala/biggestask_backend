@@ -531,7 +531,7 @@ class AppapiController extends Controller
                                 </td>
     
                             </tr>   
-    
+     
                         </table></body></html>';
     
             $headers = "From: biggestask@gmail.com" . "\r\n" .
@@ -1129,24 +1129,11 @@ class AppapiController extends Controller
     // ****************************************************** For contact **************************************************
     public function contact_create(Request $request){
         
-        $image = $request->file('image');
-        
-        if($image){
-
-        $name = time().'.'.$image->getClientOriginalExtension();
-
-        $destinationPath = public_path('/images/contact');
-
-        $image->move($destinationPath,$name);
-        }
         $contact = new Contact;
         $contact->title = $request->title;
         $contact->agency_name = $request->agency_name;
         $contact->agency_email = $request->agency_email;
         $contact->agency_number = $request->agency_number;
-        if($image){
-            $contact->image = 'https://biggestaskbackend.justcodenow.com/images/contact/'.$name;
-        }
         $contact->user_id = $request->user_id;
         $contact->type = $request->type;
         $contact->save();
@@ -1162,6 +1149,31 @@ class AppapiController extends Controller
                 'error_code' => '1001',
                 'status' => '401',
                 'message' => 'Contact has been not created'
+            ], 401);
+        }
+    }
+    public function contact_update(Request $request){
+        $id = $request->id;
+
+        $contact = Contact::find($id);
+        $contact->title = $request->title;
+        $contact->agency_name = $request->agency_name;
+        $contact->agency_email = $request->agency_email;
+        $contact->agency_number = $request->agency_number;
+        $contact->user_id = $request->user_id;
+        $contact->type = $request->type;
+        $contact->save();
+
+        if($contact){
+            return Response::json([
+                'status' => '200',
+                'message' => 'Contact updated successfully'
+            ], 200); 
+        }else{
+            return Response::json([
+                'error_code' => '1001',
+                'status' => '401',
+                'message' => 'Contact has been not updated'
             ], 401);
         }
     }
@@ -1929,8 +1941,9 @@ class AppapiController extends Controller
 
         mail($to,$subject,$Templet,$headers);
         
-        return Response::json([ 
+        return Response::json([
             'status' => '200',
+            'partner_id' => $surrogate_id,
             'message' => 'Parent & surrogate connected successfully'
         ], 200);
             
@@ -2277,34 +2290,144 @@ class AppapiController extends Controller
         
     }
     public function get_nearest_milestone(){
-            $user_id = $_GET['user_id'];
-            $type = $_GET['type'];
-            $current_date = Carbon::parse(now())->format('Y/m/d');
-            
-            if($type == 'parent'){
-                $milestone = MilestoneUser::where('parent_id',$user_id)->where('date','>=',$current_date)->orderBy('date','ASC')->first(['date','title','milestone_image']);
-            }else{
-                $milestone = MilestoneUser::where('surrogate_id',$user_id)->where('date','>=',$current_date)->orderBy('date','ASC')->first(['date','title','milestone_image']);
+        $user_id = $_GET['user_id'];
+        $type = $_GET['type'];
+        $current_date = Carbon::parse(now())->format('Y/m/d');
+        $partner_id = $_GET['partner_id'];
+      
+        if($type == 'parent'){
+            $milestone = MilestoneUser::where('parent_id',$user_id)
+            ->get(['milestone_id','date','title','milestone_image']);
+            foreach($milestone as $mile){
+                if($mile->date == NULL || $mile->date >= Carbon::parse(now())->format('Y/m/d')){
+                    $milestone_id = $mile->milestone_id;
+                    $check = Notification::where('type','surrogate')->where('milestone_id',$milestone_id)->where('user_id',$partner_id)->get();
+                    if(count($check)>0){
+                        $state = true;
+                    }else{
+                        $state = false;
+                    }
+                    $mile_stone = array
+                    (
+                        'nearest_milestone' => $mile,
+                        'state' => $state,
+                    );
+                    return $mile_stone;
+                    exit;
+                }
             }
-            
-            if($milestone){
-                // $date = Carbon::parse($milestone->date);
-                // $title = $milestone->title;
-                // $milestone_image = $milestone->milestone_image;
-                // return Response::json([
-                //     'date' => $date,
-                //     'title' => $title,
-                //     'milestone_image' => $milestone_image
-                // ], 200);
-                return $milestone;
-            }else{
-                return Response::json([
-                    'error_code' => '1005',
-                    'status' => '404',
-                    'message' => 'Record not found'
-                ], 404);
+            exit;
+        }else{
+            $milestone = MilestoneUser::where('surrogate_id',$user_id)
+            ->get(['milestone_id','date','title','milestone_image']);
+            foreach($milestone as $mile){
+                if($mile->date == NULL || $mile->date >= Carbon::parse(now())->format('Y/m/d')){
+                    $milestone_id = $mile->milestone_id;
+                    $check = Notification::where('type','parent')->where('milestone_id',$milestone_id)->where('user_id',$partner_id)->get();
+                    if(count($check)>0){
+                        $state = true;
+                    }else{
+                        $state = false;
+                    }
+                    $mile_stone = array
+                    (
+                        'nearest_milestone' => $mile,
+                        'state' => $state,
+                    );
+                    return $mile_stone;
+                    exit;
+                }
             }
+            exit;
         }
+        
+    }
+    public function ask_surrogate(Request $request){
+        // return $request;
+        // exit;
+        $id = $request->user_id;
+        $user = App_User_surrogate::where('partner_id',$id)->get();
+        
+        $tokens = [];
+        $tokens[] = App_User_surrogate::where('partner_id',$id)->where('status','active')->pluck('fcm_token')->all();
+        $tok = json_encode($tokens);
+        $serverKey = 'AAAA0Dilu7Q:APA91bGielTS1lx_aava8vUVRaj5Bo5pBrxY_zmzvdGv86jsvtOBfzHGHvb6YyneZRNyNeAwh9r1VvVkHUB-LpRS4366yaLqS_a3x5vSmN5bMYCuKSdppH_mrGNC42ic32JhbPWoJLHm';
+
+        $partner_id = $user[0]['id'];
+        $type = 'surrogate';
+        $title = $request->title;
+        $notification_text = 'Please, Add the next milestone date';
+
+        $notification = new Notification;
+        $notification->type = $type;
+        $notification->user_id = $partner_id;
+        $notification->milestone_id = $request->milestone_id;
+        $notification->fcm_token = $tok;
+        $notification->date = Carbon::parse(now())->format('Y-m-d');
+        $notification->title = $title;
+        $notification->notification = $notification_text;
+        $notification->save();
+
+        if($notification){
+            $msg = array
+            (
+                'message' => $notification_text,
+                'milestone_id' => $notification->id,
+            );
+    
+            $notifyData = [
+                "body" => $notification_text,
+                "title" => $title
+            ];
+    
+            $registrationIds = $tokens[0];
+    
+            if(count($tokens) > 1){
+                $fields = array
+                (
+                    'registration_ids' => $registrationIds,
+                    'notification' => $notifyData,
+                    'data' => $msg,
+                    'priority' => 'high'
+                );
+            }else{
+                $fields = array
+                (
+                    'to' => $registrationIds[0],
+                    'notification' => $notifyData,
+                    'data' => $msg,
+                    'priority' => 'high'
+                );
+            }
+            $headers = array
+                (
+                    'Authorization: key=' . $serverKey,
+                    'Content-Type: application/json'
+                );
+            //#Send Reponse To FireBase Server
+            $ch = curl_init();
+            curl_setopt( $ch,CURLOPT_URL, 'https://fcm.googleapis.com/fcm/send' );
+            curl_setopt( $ch,CURLOPT_POST, true );
+            curl_setopt( $ch,CURLOPT_HTTPHEADER, $headers );
+            curl_setopt( $ch,CURLOPT_RETURNTRANSFER, true );
+            curl_setopt( $ch,CURLOPT_SSL_VERIFYPEER, false );
+            curl_setopt( $ch,CURLOPT_POSTFIELDS, json_encode( $fields ) );
+            $result = curl_exec($ch );
+            // dd($result);
+            curl_close( $ch );
+            return Response::json([
+                'status' => '201',
+                'message' => 'Notification send successfully'
+            ], 201); 
+        }else{
+            return Response::json([
+                'error_code' => '1001',
+                'status' => '401',
+                'message' => 'Notification has been not send'
+            ], 401);
+        }
+        
+    }
         public function get_important_question(Request $request){
             $type = $request->type;
             $user_id = $request->user_id;

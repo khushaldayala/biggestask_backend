@@ -106,6 +106,8 @@ Route::get('/get_community',[AppapiController::class,'get_community'])->name('ge
 
 Route::post('/contact_create',[AppapiController::class,'contact_create'])->name('contact_create');
 
+Route::post('/contact_update',[AppapiController::class,'contact_update'])->name('contact_update');
+
 Route::get('/get_contact',[AppapiController::class,'get_contact'])->name('get_contact');
 
 Route::get('/get_milestone',[AppapiController::class,'get_milestone'])->name('get_milestone');
@@ -141,6 +143,8 @@ Route::get('/get_qestion_screen_question',[AppapiController::class,'get_qestion_
 Route::get('/intended_partner_que_ans',[AppapiController::class,'intended_partner_que_ans'])->name('intended_partner_que_ans');
 
 Route::get('/get_nearest_milestone',[AppapiController::class,'get_nearest_milestone'])->name('get_nearest_milestone');
+
+Route::post('/ask_surrogate',[AppapiController::class,'ask_surrogate'])->name('ask_surrogate');
 
 Route::get('/get_important_question',[AppapiController::class,'get_important_question'])->name('get_important_question');
 
